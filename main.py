@@ -965,6 +965,16 @@ class QuizApp(App):
             self.show_error_message(f"重新测试失败: {str(e)}")
             self.sm.current = 'file_select'
 
+    def show_error_message(self, message):
+        content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
+        content.add_widget(Label(text=message, font_name='simhei'))
+
+        btn = Button(text='确定', size_hint_y=None, height=dp(50))
+        popup = Popup(title='错误', title_font='simhei', content=content, size_hint=(0.8, 0.4))
+        btn.bind(on_press=popup.dismiss)
+        content.add_widget(btn)
+        popup.open()
+
     def go_home(self):
         if hasattr(self, 'result_screen'):
             self.result_screen._layout_initialized = False
