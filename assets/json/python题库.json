@@ -1,0 +1,375 @@
+[
+    {
+        "type": "single",
+        "question": "Python中用于数据序列化的标准库是？",
+        "options": [
+            "A. json",
+            "B. pickle", 
+            "C. marshal",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理手势识别的模块是？",
+        "options": [
+            "A. GestureDetector",
+            "B. Touch", 
+            "C. MotionEvent",
+            "D. MultiTouch"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python装饰器的作用是？",
+        "options": [
+            "A. 修改函数行为",
+            "B. 添加函数元数据", 
+            "C. 实现AOP编程",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy的布局类不包括？",
+        "options": [
+            "A. BoxLayout",
+            "B. GridLayout", 
+            "C. StackLayout",
+            "D. TreeLayout"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于类型提示的语法是？",
+        "options": [
+            "A. :type",
+            "B. ->", 
+            "C. #type",
+            "D. @typed"
+        ],
+        "answer": "B",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy应用程序的生命周期方法不包括？",
+        "options": [
+            "A. on_start",
+            "B. on_pause", 
+            "C. on_resume",
+            "D. on_reload"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于创建协程的关键字是？",
+        "options": [
+            "A. async",
+            "B. await", 
+            "C. yield",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理动画的类是？",
+        "options": [
+            "A. Animation",
+            "B. Clock", 
+            "C. Transition",
+            "D. Motion"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中不可变的数据类型包括？",
+        "options": [
+            "A. 字符串",
+            "B. 元组", 
+            "C. 数字",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy支持的多平台不包括？",
+        "options": [
+            "A. iOS",
+            "B. Android", 
+            "C. Windows Phone",
+            "D. Linux"
+        ],
+        "answer": "C",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于单元测试的标准库是？",
+        "options": [
+            "A. unittest",
+            "B. pytest", 
+            "C. doctest",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理文件存储的类是？",
+        "options": [
+            "A. FileStorage",
+            "B. FileManager", 
+            "C. FileSystem",
+            "D. 无内置类"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于正则表达式操作的库是？",
+        "options": [
+            "A. re",
+            "B. regex", 
+            "C. 两者都是",
+            "D. 两者都不是"
+        ],
+        "answer": "C",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于国际化的模块是？",
+        "options": [
+            "A. i18n",
+            "B. gettext", 
+            "C. Locale",
+            "D. 无内置模块"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于创建枚举的类是？",
+        "options": [
+            "A. Enum",
+            "B. IntEnum", 
+            "C. Flag",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理音视频的模块是？",
+        "options": [
+            "A. Sound",
+            "B. Video", 
+            "C. Core",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于创建上下文管理器的协议是？",
+        "options": [
+            "A. __enter__/__exit__",
+            "B. with协议", 
+            "C. context协议",
+            "D. scope协议"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理网络请求的模块是？",
+        "options": [
+            "A. requests",
+            "B. urllib", 
+            "C. 需第三方库",
+            "D. Network"
+        ],
+        "answer": "C",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于创建数据类的装饰器是？",
+        "options": [
+            "A. @dataclass",
+            "B. @data", 
+            "C. @classdata",
+            "D. @record"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理3D图形的模块是？",
+        "options": [
+            "A. OpenGL",
+            "B. GLES2", 
+            "C. 两者都是",
+            "D. 两者都不是"
+        ],
+        "answer": "C",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python解释器的实现不包括？",
+        "options": [
+            "A. CPython",
+            "B. Jython", 
+            "C. IronPython",
+            "D. RubyPython",
+            "E. PyPy"
+        ],
+        "answer": "D",
+        "score": 1,
+        "note": "⭐ 5个选项"
+    },
+    {
+        "type": "single",
+        "question": "Kivy支持的事件类型包括？",
+        "options": [
+            "A. 触摸事件",
+            "B. 键盘事件", 
+            "C. 鼠标事件",
+            "D. 手势事件",
+            "E. 以上都是"
+        ],
+        "answer": "E",
+        "score": 1,
+        "note": "⭐ 5个选项"
+    },
+    {
+        "type": "single",
+        "question": "Python中用于内存管理的机制是？",
+        "options": [
+            "A. 引用计数",
+            "B. 垃圾回收", 
+            "C. 内存池",
+            "D. 分代回收",
+            "E. 以上都是"
+        ],
+        "answer": "E",
+        "score": 1,
+        "note": "⭐ 5个选项"
+    },
+    {
+        "type": "single",
+        "question": "Kivy的跨平台特性依赖？",
+        "options": [
+            "A. SDL2",
+            "B. OpenGL ES 2", 
+            "C. Python解释器",
+            "D. Cython编译",
+            "E. 以上都是"
+        ],
+        "answer": "E",
+        "score": 1,
+        "note": "⭐ 5个选项"
+    },
+    {
+        "type": "single",
+        "question": "Python中可用于Web开发的框架包括？",
+        "options": [
+            "A. Django",
+            "B. Flask", 
+            "C. FastAPI",
+            "D. Tornado",
+            "E. 以上都是"
+        ],
+        "answer": "E",
+        "score": 1,
+        "note": "⭐ 5个选项"
+    },
+    {
+        "type": "single",
+        "question": "Kivy中Widget类的核心方法包括？",
+        "options": [
+            "A. add_widget()",
+            "B. remove_widget()", 
+            "C. on_touch_down()",
+            "D. draw()",
+            "E. 以上都是"
+        ],
+        "answer": "E",
+        "score": 1,
+        "note": "⭐ 5个选项"
+    },
+    {
+        "type": "single",
+        "question": "Python中用于科学计算的库不包括？",
+        "options": [
+            "A. NumPy",
+            "B. SciPy", 
+            "C. Pandas",
+            "D. jQuery"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy中用于处理多语言的解决方案是？",
+        "options": [
+            "A. gettext",
+            "B. 第三方库", 
+            "C. 内置i18n模块",
+            "D. 不支持多语言"
+        ],
+        "answer": "B",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Python中用于创建线程的模块是？",
+        "options": [
+            "A. threading",
+            "B. _thread", 
+            "C. 两者都是",
+            "D. 两者都不是"
+        ],
+        "answer": "C",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Kivy应用程序的配置文件默认名称是？",
+        "options": [
+            "A. config.ini",
+            "B. kivy.ini", 
+            "C. settings.ini",
+            "D. app.ini"
+        ],
+        "answer": "A",
+        "score": 1
+    }
+]
+

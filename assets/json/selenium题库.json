@@ -1,0 +1,381 @@
+[
+    {
+        "type": "single",
+        "question": "Selenium WebDriver的主要作用是？",
+        "options": [
+            "A. 模拟浏览器操作",
+            "B. 性能测试", 
+            "C. 接口测试",
+            "D. 单元测试"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium支持的浏览器不包括？",
+        "options": [
+            "A. Chrome",
+            "B. Firefox", 
+            "C. Safari",
+            "D. IE",
+            "E. Opera",
+            "F. 以上都支持"
+        ],
+        "answer": "F",
+        "score": 1,
+        "note": "⭐ 6个选项"
+    },
+    {
+        "type": "single",
+        "question": "定位元素的常用方法不包括？",
+        "options": [
+            "A. find_element_by_id",
+            "B. find_element_by_name", 
+            "C. find_element_by_color",
+            "D. find_element_by_xpath"
+        ],
+        "answer": "C",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium IDE主要用于？",
+        "options": [
+            "A. 录制回放测试",
+            "B. 编写复杂测试脚本", 
+            "C. 性能测试",
+            "D. API测试"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "显式等待使用的类是？",
+        "options": [
+            "A. WebDriverWait",
+            "B. ExplicitWait", 
+            "C. Wait",
+            "D. Timeout"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium Grid的主要作用是？",
+        "options": [
+            "A. 分布式测试",
+            "B. 提高单个测试速度", 
+            "C. 生成测试报告",
+            "D. 录制测试"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "处理弹窗的方法是？",
+        "options": [
+            "A. switch_to.alert",
+            "B. handle_alert", 
+            "C. alert_box",
+            "D. popup_window"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium支持的编程语言包括？",
+        "options": [
+            "A. Java",
+            "B. Python", 
+            "C. C#",
+            "D. JavaScript",
+            "E. Ruby",
+            "F. 以上都是"
+        ],
+        "answer": "F",
+        "score": 1,
+        "note": "⭐ 6个选项"
+    },
+    {
+        "type": "single",
+        "question": "鼠标悬停操作使用的类是？",
+        "options": [
+            "A. ActionChains",
+            "B. MouseActions", 
+            "C. Hover",
+            "D. MouseEvent"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "获取当前页面URL的方法是？",
+        "options": [
+            "A. current_url",
+            "B. get_url", 
+            "C. url",
+            "D. location"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium WebDriver的架构包含？",
+        "options": [
+            "A. JSON Wire Protocol",
+            "B. 浏览器驱动", 
+            "C. 客户端库",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "处理iframe的方法是？",
+        "options": [
+            "A. switch_to.frame",
+            "B. enter_frame", 
+            "C. select_frame",
+            "D. frame"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium RC已被什么取代？",
+        "options": [
+            "A. WebDriver",
+            "B. IDE", 
+            "C. Grid",
+            "D. Appium"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "上传文件的方法是？",
+        "options": [
+            "A. send_keys",
+            "B. upload", 
+            "C. attach_file",
+            "D. input_file"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium中常用的断言方法包括？",
+        "options": [
+            "A. assertEqual",
+            "B. assertTrue", 
+            "C. assertIn",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "处理下拉选择框的类是？",
+        "options": [
+            "A. Select",
+            "B. Dropdown", 
+            "C. Option",
+            "D. Choice"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium可以测试的应用类型包括？",
+        "options": [
+            "A. Web应用",
+            "B. 移动应用", 
+            "C. 桌面应用",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "获取元素文本的方法是？",
+        "options": [
+            "A. text",
+            "B. get_text", 
+            "C. content",
+            "D. innerHTML"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium中常用的等待方式包括？",
+        "options": [
+            "A. 隐式等待",
+            "B. 显式等待", 
+            "C. 固定等待",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "执行JavaScript的方法是？",
+        "options": [
+            "A. execute_script",
+            "B. run_js", 
+            "C. javascript",
+            "D. eval"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium测试的最佳实践包括？",
+        "options": [
+            "A. 使用PageObject模式",
+            "B. 减少硬编码等待", 
+            "C. 编写独立测试用例",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "获取浏览器窗口大小的方法是？",
+        "options": [
+            "A. get_window_size",
+            "B. window_size", 
+            "C. browser_size",
+            "D. size"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium可以模拟的操作包括？",
+        "options": [
+            "A. 点击",
+            "B. 输入", 
+            "C. 拖拽",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "处理cookie的方法是？",
+        "options": [
+            "A. get_cookies",
+            "B. add_cookie", 
+            "C. delete_cookie",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium WebDriver的核心组件包括？",
+        "options": [
+            "A. 浏览器驱动",
+            "B. 语言绑定", 
+            "C. Selenium Server",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "截图的方法是？",
+        "options": [
+            "A. save_screenshot",
+            "B. take_screenshot", 
+            "C. capture",
+            "D. screenshot"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium测试框架的常见扩展包括？",
+        "options": [
+            "A. TestNG",
+            "B. JUnit", 
+            "C. PyTest",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "处理浏览器选项卡的方法是？",
+        "options": [
+            "A. switch_to.window",
+            "B. new_tab", 
+            "C. select_window",
+            "D. change_tab"
+        ],
+        "answer": "A",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium可以集成的持续集成工具包括？",
+        "options": [
+            "A. Jenkins",
+            "B. Travis CI", 
+            "C. CircleCI",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "无头浏览器测试常用的浏览器是？",
+        "options": [
+            "A. Chrome Headless",
+            "B. Firefox Headless", 
+            "C. PhantomJS",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    },
+    {
+        "type": "single",
+        "question": "Selenium测试的常见挑战包括？",
+        "options": [
+            "A. 元素定位困难",
+            "B. 测试稳定性", 
+            "C. 执行速度",
+            "D. 以上都是"
+        ],
+        "answer": "D",
+        "score": 1
+    }
+]
+
