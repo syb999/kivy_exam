@@ -40,22 +40,52 @@ class QuizDatabase:
         self.db_path = db_path
         self.conn = None
         self._initialize_database()
-
+    
     def _initialize_database(self):
         db_dir = os.path.dirname(self.db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir)
 
+        if not os.path.exists(self.db_path):
+            open(self.db_path, 'a').close()
+
         self.conn = sqlite3.connect(self.db_path)
         cursor = self.conn.cursor()
 
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='quizzes'")
+        table_exists = cursor.fetchone()
+
+        if not table_exists:
+            cursor.execute('''
+            CREATE TABLE quizzes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                description TEXT,
+                source_type TEXT DEFAULT 'json'
+            )
+            ''')
+
+            cursor.execute('''
+            CREATE TABLE questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quiz_id INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                options TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                type TEXT NOT NULL,
+                score INTEGER DEFAULT 1,
+                FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+            )
+            ''')
+            self.conn.commit()
+            return
+
         cursor.execute("PRAGMA table_info(quizzes)")
         columns = [column[1] for column in cursor.fetchall()]
-        
+
         if 'source_type' not in columns:
             try:
                 cursor.execute("BEGIN TRANSACTION")
-
                 cursor.execute('''
                 CREATE TABLE quizzes_temp (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,26 +101,12 @@ class QuizDatabase:
                 ''')
 
                 cursor.execute("DROP TABLE quizzes")
-
                 cursor.execute("ALTER TABLE quizzes_temp RENAME TO quizzes")
-
                 cursor.execute("COMMIT")
             except Exception as e:
                 cursor.execute("ROLLBACK")
                 raise e
 
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS questions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            quiz_id INTEGER NOT NULL,
-            question TEXT NOT NULL,
-            options TEXT NOT NULL,
-            answer TEXT NOT NULL,
-            type TEXT NOT NULL,
-            score INTEGER DEFAULT 1,
-            FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
-        )
-        ''')
         self.conn.commit()
 
     def get_available_quizzes(self):
@@ -213,8 +229,7 @@ class ExcelImportScreen(Screen):
 
         self.file_chooser = FileChooserListView(
             filters=['*.xls', '*.xlsx'],
-            font_name='simhei',
-            path=os.getcwd()
+            font_name='simhei'
         )
         self.layout.add_widget(self.file_chooser)
 
