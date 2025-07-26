@@ -936,21 +936,34 @@ class QuizApp(App):
             self.current_question = f"继续测试失败: {str(e)}"
 
     def restart_quiz(self):
-        if hasattr(self, 'result_screen'):
-            self.result_screen._layout_initialized = False
-            self.result_screen.clear_widgets()
+        try:
+            if hasattr(self, 'result_screen'):
+                self.result_screen._layout_initialized = False
+                self.result_screen.clear_widgets()
 
-        self.question_index = 0
-        self.selected_answer = ''
-        self.total_score = 0
-        self.user_answers = []
-        self.is_submitted = False
-        self.result_details = []
-        self.total_time_used = 0
-        self.current_time_used = '00:00'
-        self.question_start_time = None
+            self.question_index = 0
+            self.selected_answer = ''
+            self.total_score = 0
+            self.user_answers = []
+            self.is_submitted = False
+            self.result_details = []
+            self.total_time_used = 0
+            self.current_time_used = '00:00'
+            self.question_start_time = None
 
-        self.sm.current = 'file_select'
+            if hasattr(self, 'last_quiz_name') and self.last_quiz_name:
+                all_questions = self.db.get_questions_by_quiz_name(self.last_quiz_name)
+                if all_questions:
+                    self.start_quiz(all_questions)
+                    return
+
+            self.sm.current = 'file_select'
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.show_error_message(f"重新测试失败: {str(e)}")
+            self.sm.current = 'file_select'
 
     def go_home(self):
         if hasattr(self, 'result_screen'):
