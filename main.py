@@ -18,6 +18,7 @@ from kivy.utils import platform
 from kivy.lang import Builder
 from kivy.config import Config
 from kivy.clock import Clock
+from kivy.clock import mainthread
 from kivy.graphics import Color, Rectangle
 import json
 import random
@@ -34,6 +35,50 @@ from kivy.uix.popup import Popup
 
 Config.set('graphics', 'multisamples', '0')
 Config.set('kivy', 'window_impl', 'sdl2')
+
+def check_android_storage_permission():
+    if platform != 'android':
+        return True
+
+    try:
+        from android import mActivity
+        from android.permissions import request_permissions, Permission, check_permission
+        from android.storage import primary_external_storage_path
+
+        request_permissions([
+            Permission.READ_EXTERNAL_STORAGE,
+            Permission.WRITE_EXTERNAL_STORAGE
+        ])
+
+        if not check_permission(Permission.READ_EXTERNAL_STORAGE):
+            return False
+
+        if int(mActivity.getApplicationInfo().targetSdkVersion) >= 30:
+            from android.content import Intent
+            from android.net import Uri
+            from java.lang import System
+
+            if System.getenv("EXTERNAL_STORAGE"):
+                return True
+
+            intent = Intent("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")
+            intent.setData(Uri.parse("package:" + mActivity.getPackageName()))
+            mActivity.startActivity(intent)
+            return False
+            
+        return True
+    except:
+        return False
+
+def get_android_download_dir():
+    if platform == 'android':
+        from jnius import autoclass
+        Environment = autoclass('android.os.Environment')
+        download_dir = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS
+        ).getAbsolutePath()
+        return download_dir
+    return None
 
 class QuizDatabase:
     def __init__(self, db_path='data/quiz.db'):
@@ -225,36 +270,110 @@ class ExcelImportScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._popup = None
-        self.layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
+        self.file_chooser = None
+        self.android_file_chooser = None
+        self.setup_ui()
 
+    def setup_ui(self):
+        self.clear_widgets()
+        
+        if platform == 'android':
+            layout = BoxLayout(orientation='vertical')
+            btn = Button(
+                text='选择Excel文件',
+                size_hint=(1, 0.5),
+                on_press=self.show_android_file_chooser
+            )
+            layout.add_widget(btn)
+            self.add_widget(layout)
+        else:
+            self.show_kivy_file_chooser()
+
+    def on_enter(self):
+        if platform == 'android':
+            check_android_storage_permission()
+        if platform != 'android' and self.file_chooser:
+            self.file_chooser._update_files()
+
+    def show_kivy_file_chooser(self):
+        layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
+        
         self.file_chooser = FileChooserListView(
             filters=['*.xls', '*.xlsx'],
-            font_name='simhei'
+            font_name='simhei',
+            size_hint=(1, 1)
         )
-        self.layout.add_widget(self.file_chooser)
-
+        
         btn_layout = BoxLayout(size_hint_y=None, height=dp(50))
         import_btn = Button(text='导入', on_press=self.import_excel)
         cancel_btn = Button(text='取消', on_press=self.cancel_import)
         btn_layout.add_widget(cancel_btn)
         btn_layout.add_widget(import_btn)
-        self.layout.add_widget(btn_layout)
         
-        self.add_widget(self.layout)
+        layout.add_widget(self.file_chooser)
+        layout.add_widget(btn_layout)
+        
+        self.clear_widgets()
+        self.add_widget(layout)
 
-    def import_excel(self, instance):
+    def show_android_file_chooser(self):
         try:
-            if not self.file_chooser.selection:
-                self.show_message('请选择Excel文件')
-                return
-            file_path = self.file_chooser.selection[0]
+            from androidstorage4kivy import Chooser
+            self.android_file_chooser = Chooser(self.chooser_callback)
+            mime_types = [
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "application/octet-stream"
+            ]
+            self.android_file_chooser.choose_content(",".join(mime_types))
+        except Exception as e:
+            print(f"Android文件选择器错误: {str(e)}")
+            self.show_kivy_file_chooser()
 
-            self.show_loading_popup("正在导入题库...")
+    @mainthread
+    def chooser_callback(self, uri_list):
+        if not uri_list:
+            return
+            
+        self.selected_file_uri = uri_list[0]
+        Clock.schedule_once(lambda dt: self.process_selected_file(), 0)
+
+    def process_selected_file(self):
+        if not self.selected_file_uri:
+            return
+            
+        try:
+            from androidstorage4kivy import SharedStorage
+            ss = SharedStorage()
+
+            file_path = ss.copy_from_shared(self.selected_file_uri)
+            if not file_path.lower().endswith(('.xls', '.xlsx')):
+                self.show_message("请选择Excel文件(.xls或.xlsx)")
+                return
+
+            self.show_loading_popup("正在导入...")
 
             Clock.schedule_once(lambda dt: self._do_import(file_path), 0.1)
-
+            
         except Exception as e:
-            self.show_message(f'导入失败: {str(e)}')
+            self.show_message(f"文件处理失败: {str(e)}")
+        finally:
+            self.selected_file_uri = None
+
+    def import_excel(self, instance=None):
+        if platform == 'android':
+            return
+
+        if not self.file_chooser or not self.file_chooser.selection:
+            self.show_message('请选择Excel文件')
+            return
+
+        file_path = self.file_chooser.selection[0]
+        self._process_import(file_path)
+
+    def _process_import(self, file_path):
+        self.show_loading_popup("正在导入题库...")
+        Clock.schedule_once(lambda dt: self._do_import(file_path), 0.1)
 
     def _do_import(self, file_path):
         try:
@@ -271,27 +390,46 @@ class ExcelImportScreen(Screen):
             if not hasattr(app, 'db') or app.db.conn is None:
                 app.db = QuizDatabase()
 
-            app.db.add_quiz(quiz_name, questions, description="", source_type="excel")
+            app.db.add_quiz(quiz_name, questions, source_type="excel")
+
+            self.show_message(f"成功导入{len(questions)}道题目")
 
             self.manager.current = 'file_select'
-            self.manager.get_screen('file_select').load_quiz_list()
-            
-        except sqlite3.OperationalError as e:
-            if "no such column: source_type" in str(e):
+            Clock.schedule_once(
+                lambda dt: self.manager.get_screen('file_select').load_quiz_list(),
+                0.5
+            )
 
-                try:
-                    app.db._initialize_database()
-                    app.db.add_quiz(quiz_name, questions, description="", source_type="excel")
-                    self.manager.current = 'file_select'
-                    self.manager.get_screen('file_select').load_quiz_list()
-                except Exception as e2:
-                    self.show_message(f'数据库修复失败: {str(e2)}')
-            else:
-                self.show_message(f'数据库错误: {str(e)}')
         except Exception as e:
             self.show_message(f'导入失败: {str(e)}')
         finally:
             self.dismiss_popup()
+
+    def show_success_message(self, message):
+        content = BoxLayout(orientation='vertical', padding=dp(10))
+        content.add_widget(Label(
+            text=message,
+            font_name='simhei',
+            halign='center'
+        ))
+        btn = Button(
+            text='确定',
+            size_hint_y=None,
+            height=dp(50),
+            on_press=lambda x: self.dismiss_popup()
+        )
+        content.add_widget(btn)
+
+        if hasattr(self, '_popup') and self._popup:
+            self._popup.dismiss()
+
+        self._popup = Popup(
+            title='导入成功',
+            title_font='simhei',
+            content=content,
+            size_hint=(0.8, 0.4)
+        )
+        self._popup.open()
 
     def show_loading_popup(self, message):
         if hasattr(self, '_popup') and self._popup:
@@ -669,14 +807,6 @@ class ResultScreen(Screen):
                 padding=[dp(10), dp(5)]
             )
 
-            continue_btn = Button(
-                text='继续测试',
-                on_press=lambda x: app.continue_quiz(),
-                font_name='simhei',
-                font_size=dp(20),
-                background_color=(0.2, 0.8, 0.2, 1)
-            )
-
             restart_btn = Button(
                 text='重新测试',
                 on_press=lambda x: app.restart_quiz(),
@@ -694,7 +824,6 @@ class ResultScreen(Screen):
             )
 
             if quiz_info and quiz_info.get('source_type', 'json') == 'excel':
-                btn_layout.add_widget(continue_btn)
                 btn_layout.add_widget(restart_btn)
                 btn_layout.add_widget(home_btn)
             else:
@@ -805,6 +934,11 @@ class QuizApp(App):
         self.db = QuizDatabase()
 
     def build(self):
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([Permission.READ_EXTERNAL_STORAGE, 
+                               Permission.WRITE_EXTERNAL_STORAGE])
+
         self.sm = ScreenManager()
         self.file_select_screen = FileSelectScreen(name='file_select')
         self.quiz_screen = QuizScreen(name='quiz')
@@ -997,21 +1131,6 @@ class QuizApp(App):
             })
 
         self.sm.current = 'result'
-
-    def continue_quiz(self):
-        if not self.last_quiz_name:
-            return
-
-        try:
-            all_questions = self.db.get_questions_by_quiz_name(self.last_quiz_name)
-            if not all_questions:
-                raise ValueError(f"题库 '{self.last_quiz_name}' 中没有题目")
-
-            self.start_quiz(all_questions)
-
-        except Exception as e:
-            print(f"继续测试失败: {str(e)}")
-            self.current_question = f"继续测试失败: {str(e)}"
 
     def restart_quiz(self):
         try:
