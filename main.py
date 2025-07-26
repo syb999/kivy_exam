@@ -643,7 +643,7 @@ class ResultScreen(Screen):
 
 class FileSelectScreen(Screen):
     def on_enter(self):
-        self.load_quiz_list()
+        Clock.schedule_once(lambda dt: self.load_quiz_list(), 0.1)
 
     def load_quiz_list(self):
         self.clear_widgets()
