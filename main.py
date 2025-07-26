@@ -46,20 +46,38 @@ class QuizDatabase:
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir)
 
-        if not os.path.exists(self.db_path):
-            open(self.db_path, 'a').close()
-
         self.conn = sqlite3.connect(self.db_path)
         cursor = self.conn.cursor()
 
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS quizzes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            description TEXT,
-            source_type TEXT DEFAULT 'json'
-        )
-        ''')
+        cursor.execute("PRAGMA table_info(quizzes)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'source_type' not in columns:
+            try:
+                cursor.execute("BEGIN TRANSACTION")
+
+                cursor.execute('''
+                CREATE TABLE quizzes_temp (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    source_type TEXT DEFAULT 'json'
+                )
+                ''')
+
+                cursor.execute('''
+                INSERT INTO quizzes_temp (id, name, description, source_type)
+                SELECT id, name, description, 'json' FROM quizzes
+                ''')
+
+                cursor.execute("DROP TABLE quizzes")
+
+                cursor.execute("ALTER TABLE quizzes_temp RENAME TO quizzes")
+
+                cursor.execute("COMMIT")
+            except Exception as e:
+                cursor.execute("ROLLBACK")
+                raise e
 
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS questions (
@@ -190,8 +208,14 @@ class QuizDatabase:
 class ExcelImportScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._popup = None
         self.layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
-        self.file_chooser = FileChooserListView(filters=['*.xls', '*.xlsx'], font_name='simhei')
+
+        self.file_chooser = FileChooserListView(
+            filters=['*.xls', '*.xlsx'],
+            font_name='simhei',
+            path=os.getcwd()
+        )
         self.layout.add_widget(self.file_chooser)
 
         btn_layout = BoxLayout(size_hint_y=None, height=dp(50))
@@ -200,18 +224,26 @@ class ExcelImportScreen(Screen):
         btn_layout.add_widget(cancel_btn)
         btn_layout.add_widget(import_btn)
         self.layout.add_widget(btn_layout)
-
+        
         self.add_widget(self.layout)
 
     def import_excel(self, instance):
-        if not self.file_chooser.selection:
-            self.show_message('请选择Excel文件')
-            return
+        try:
+            if not self.file_chooser.selection:
+                self.show_message('请选择Excel文件')
+                return
+            file_path = self.file_chooser.selection[0]
 
-        file_path = self.file_chooser.selection[0]
+            self.show_loading_popup("正在导入题库...")
+
+            Clock.schedule_once(lambda dt: self._do_import(file_path), 0.1)
+
+        except Exception as e:
+            self.show_message(f'导入失败: {str(e)}')
+
+    def _do_import(self, file_path):
         try:
             df = pd.read_excel(file_path)
-
             questions = self.process_excel_data(df)
 
             if not questions:
@@ -219,15 +251,46 @@ class ExcelImportScreen(Screen):
                 return
 
             quiz_name = os.path.splitext(os.path.basename(file_path))[0]
-
             app = App.get_running_app()
-            app.db.add_quiz(quiz_name, questions, source_type="excel")
+
+            if not hasattr(app, 'db') or app.db.conn is None:
+                app.db = QuizDatabase()
+
+            app.db.add_quiz(quiz_name, questions, description="", source_type="excel")
 
             self.manager.current = 'file_select'
             self.manager.get_screen('file_select').load_quiz_list()
+            
+        except sqlite3.OperationalError as e:
+            if "no such column: source_type" in str(e):
 
+                try:
+                    app.db._initialize_database()
+                    app.db.add_quiz(quiz_name, questions, description="", source_type="excel")
+                    self.manager.current = 'file_select'
+                    self.manager.get_screen('file_select').load_quiz_list()
+                except Exception as e2:
+                    self.show_message(f'数据库修复失败: {str(e2)}')
+            else:
+                self.show_message(f'数据库错误: {str(e)}')
         except Exception as e:
             self.show_message(f'导入失败: {str(e)}')
+        finally:
+            self.dismiss_popup()
+
+    def show_loading_popup(self, message):
+        if hasattr(self, '_popup') and self._popup:
+            self._popup.dismiss()
+
+        content = BoxLayout(orientation='vertical', padding=10)
+        content.add_widget(Label(text=message))
+        self._popup = Popup(title='请稍候', title_font='simhei', content=content, size_hint=(0.8, 0.2))
+        self._popup.open()
+
+    def dismiss_popup(self):
+        if hasattr(self, '_popup') and self._popup:
+            self._popup.dismiss()
+            self._popup = None
 
     def process_excel_data(self, df):
         questions = []
