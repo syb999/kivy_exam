@@ -17,7 +17,7 @@ source.include_dirs = assets, data
 
 version = 1.1
 
-requirements = python3, kivy, pyjnius,plyer, sdl2, sdl2_image, sdl2_ttf, sdl2_mixer, android, pillow, sqlite3, pandas, androidstorage4kivy
+requirements = python3, kivy, jnius, pyjnius,plyer, sdl2, sdl2_image, sdl2_ttf, sdl2_mixer, android, pillow, sqlite3, pandas, openpyxl, et_xmlfile
 
 presplash.filename = %(source.dir)s/data/presplash.png
 
@@ -34,9 +34,13 @@ osx.kivy_version = 1.9.1
 
 fullscreen = 0
 
-android.permissions =  INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
+android.permissions =  INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+
+android.intent_filters = 
+    android:mimeType="application/*" android:host="*/*"
 
 android.api = 30
+android.enable_androidx = True
 
 android.minapi = 21
 

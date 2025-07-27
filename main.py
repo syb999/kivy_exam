@@ -278,21 +278,19 @@ class ExcelImportScreen(Screen):
         self.clear_widgets()
         
         if platform == 'android':
-            layout = BoxLayout(orientation='vertical')
-            btn = Button(
-                text='选择Excel文件',
-                size_hint=(1, 0.5),
-                on_press=self.show_android_file_chooser
-            )
-            layout.add_widget(btn)
-            self.add_widget(layout)
+            pass
         else:
             self.show_kivy_file_chooser()
 
+    def go_back(self, instance):
+        if self._popup:
+            self._popup.dismiss()
+        self.manager.current = 'file_select'
+
     def on_enter(self):
         if platform == 'android':
-            check_android_storage_permission()
-        if platform != 'android' and self.file_chooser:
+            pass
+        elif platform != 'android' and self.file_chooser:
             self.file_chooser._update_files()
 
     def show_kivy_file_chooser(self):
@@ -857,15 +855,16 @@ class FileSelectScreen(Screen):
 
         layout = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
 
-        import_btn = Button(
-            text='导入Excel题库',
-            size_hint_y=None,
-            height=dp(60),
-            font_name='simhei',
-            background_color=(0.2, 0.6, 1, 1)
-        )
-        import_btn.bind(on_press=self.goto_import)
-        layout.add_widget(import_btn)
+        if platform != 'android':
+            import_btn = Button(
+                text='导入Excel题库',
+                size_hint_y=None,
+                height=dp(60),
+                font_name='simhei',
+                background_color=(0.2, 0.6, 1, 1)
+            )
+            import_btn.bind(on_press=self.goto_import)
+            layout.add_widget(import_btn)
 
         title = Label(
             text='选择题库',
@@ -910,6 +909,8 @@ class FileSelectScreen(Screen):
         self.add_widget(layout)
 
     def goto_import(self, instance):
+        if platform == 'android':
+            return
         self.manager.current = 'excel_import'
 
 class QuizApp(App):
