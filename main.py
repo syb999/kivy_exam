@@ -287,8 +287,9 @@ class ExcelImportScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._popup = None
-        self.file_chooser = None
-        self.selected_file_uri = None
+        self._processing_popup = None
+        self.selected_file_path = None
+        self.suggested_quiz_name = ""
         self.setup_ui()
 
     def setup_ui(self):
@@ -354,36 +355,83 @@ class ExcelImportScreen(Screen):
         try:
             self.show_loading_popup("正在处理文件...")
 
-            import threading
-            thread = threading.Thread(
-                target=self._process_android_file,
-                args=(uri,),
-                daemon=True
-            )
-            thread.start()
-            
-        except Exception as e:
-            self.show_message(f"文件处理错误: {str(e)}")
-
-
-    def _process_android_file(self, uri):
-        try:
-            display_name = self._get_display_name(uri)
-
+            from android.storage import app_storage_path
             temp_dir = os.path.join(app_storage_path(), 'temp_import')
             os.makedirs(temp_dir, exist_ok=True)
             temp_path = os.path.join(temp_dir, 'import_temp.xlsx')
 
+            def _android_file_operation():
+                try:
+                    from jnius import autoclass, cast
+                    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+                    cr = PythonActivity.mActivity.getContentResolver()
+                    input_stream = cr.openInputStream(cast('android.net.Uri', uri))
+                    
+                    with open(temp_path, 'wb') as f:
+                        buf = bytearray(8192)
+                        while True:
+                            bytes_read = input_stream.read(buf)
+                            if bytes_read == -1:
+                                break
+                            f.write(buf[:bytes_read])
+
+                    Clock.schedule_once(
+                        lambda dt: self._complete_android_import(temp_path),
+                        0
+                    )
+
+                except Exception as e:
+                    Clock.schedule_once(
+                        lambda dt, e=e: self._handle_android_error(e, temp_path),
+                        0
+                    )
+                finally:
+                    try:
+                        input_stream.close()
+                    except:
+                        pass
+
             import threading
-            thread = threading.Thread(
-                target=self._copy_file_thread,
-                args=(uri, temp_path, display_name),
-                daemon=True
-            )
-            thread.start()
+            threading.Thread(target=_android_file_operation, daemon=True).start()
+
+        except Exception as e:
+            self.show_message(f"文件处理错误: {str(e)}")
+
+    def _complete_android_import(self, temp_path):
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            display_name = "未命名题库"
+
+            try:
+                from jnius import cast
+                ContentResolver = autoclass('android.content.ContentResolver')
+                cursor = PythonActivity.mActivity.getContentResolver().query(
+                    cast('android.net.Uri', uri),
+                    None, None, None, None
+                )
+                if cursor and cursor.moveToFirst():
+                    name_index = cursor.getColumnIndex("_display_name")
+                    if name_index != -1:
+                        display_name = os.path.splitext(cursor.getString(name_index))[0]
+            except:
+                pass
+
+            self.show_name_dialog(temp_path, display_name)
             
         except Exception as e:
-            Clock.schedule_once(lambda dt, msg=f"准备导入失败: {str(e)}": self.show_message(msg))
+            self.show_message(f"导入失败: {str(e)}")
+        finally:
+            self.dismiss_popup()
+
+    def _handle_android_error(self, error, temp_path=None):
+        self.dismiss_popup()
+        self.show_message(f"处理失败: {str(error)}")
+        try:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except:
+            pass
 
     def _get_display_name(self, uri):
         from jnius import cast
@@ -423,7 +471,7 @@ class ExcelImportScreen(Screen):
                     f.write(buf[:bytes_read])
 
             Clock.schedule_once(lambda dt: self.show_name_dialog(temp_path, display_name))
-            
+
         except Exception as e:
             Clock.schedule_once(lambda dt, msg=f"文件复制失败: {str(e)}": self.show_message(msg))
         finally:
@@ -434,24 +482,17 @@ class ExcelImportScreen(Screen):
 
     @mainthread
     def show_name_dialog(self, file_path, suggested_name):
+        popup = None
+
         padding = 20
         spacing = 15
 
         content = BoxLayout(
             orientation='vertical',
-            spacing=spacing,
+	        spacing=spacing,
             padding=[padding, padding, padding, padding],
             size_hint=(1, None),
-            height=200
-        )
-
-        title_label = Label(
-            text="请为题库命名",
-            size_hint_y=None,
-            height=50,
-            font_name='simhei',
-            font_size='20sp',
-            halign='center'
+            height=300
         )
 
         name_input = TextInput(
@@ -461,96 +502,94 @@ class ExcelImportScreen(Screen):
             height=100,
             font_name='simhei',
             font_size='18sp',
-            padding=[20, 20]
+            padding=[20, 20],
         )
 
         btn_layout = BoxLayout(
             spacing=10,
             size_hint_y=None,
-            height=300
+            height=100
         )
-
-        cancel_btn = Button(
-            text="取消",
-            size_hint_x=0.5,
-            font_size='18sp'
-        )
-
-        confirm_btn = Button(
-            text="确定",
-            size_hint_x=0.5,
-            font_size='18sp'
-        )
-
-        content.add_widget(title_label)
-        content.add_widget(name_input)
-        btn_layout.add_widget(cancel_btn)
-        btn_layout.add_widget(confirm_btn)
-        content.add_widget(btn_layout)
-
-        total_height = (
-            title_label.height +
-            name_input.height +
-            btn_layout.height +
-            (padding * 2) +
-            (spacing * 2)
-        )
-        content.height = total_height
 
         def confirm(instance):
+            nonlocal popup
             quiz_name = name_input.text.strip()
             if not quiz_name:
                 self.show_message("题库名称不能为空")
                 return
             
-            popup.dismiss()
+            if popup:
+                popup.dismiss()
             self._safe_import_quiz(file_path, quiz_name)
-        
+
+        cancel_btn = Button(
+            text="取消",
+            size_hint_x=0.5
+        )
+        confirm_btn = Button(
+            text="确定",
+            size_hint_x=0.5
+        )
+
+        def on_cancel(instance):
+            if popup:
+                popup.dismiss()
+
+        cancel_btn.bind(on_press=on_cancel)
         confirm_btn.bind(on_press=confirm)
-        cancel_btn.bind(on_press=lambda x: popup.dismiss())
+
+        btn_layout.add_widget(cancel_btn)
+        btn_layout.add_widget(confirm_btn)
+
+        content.add_widget(Label(
+            text="请输入题库名称:",
+            font_name='simhei',
+            size_hint_y=None,
+            height=60
+        ))
+        content.add_widget(name_input)
+        content.add_widget(btn_layout)
 
         popup = Popup(
             title='',
             title_font='simhei',
             content=content,
-            size_hint=(0.85, None),
-            height=total_height + 40,
+            size_hint=(0.8, None),
+            height=300,
             auto_dismiss=False
         )
+
+        def on_cancel_final(instance):
+            popup.dismiss()
+        
+        cancel_btn.bind(on_press=on_cancel_final)
+
         popup.open()
+        return popup
 
     def _safe_import_quiz(self, file_path, quiz_name):
-        processing_popup = Popup(
-            title='处理中',
-            title_font='simhei',
-            content=Label(text="正在导入题库...", font_size='18sp'),
-            size_hint=(0.7, 0.4)
-        )
-        processing_popup.open()
+        self._show_processing_popup("正在导入题库...")
 
         Clock.schedule_once(
-            lambda dt: self._execute_import(file_path, quiz_name, processing_popup),
+            lambda dt: self._execute_import(file_path, quiz_name),
             0.2
         )
 
-    def _execute_import(self, file_path, quiz_name, processing_popup):
+    def _execute_import(self, file_path, quiz_name):
         try:
-            app = App.get_running_app()
-
-            if not hasattr(app, 'db'):
-                app.db = QuizDatabase()
-
-            try:
-                if file_path.endswith('.xlsx'):
-                    df = pd.read_excel(file_path, engine='openpyxl')
-                else:
-                    df = pd.read_excel(file_path, engine='xlrd')
-            except Exception as e:
-                raise Exception(f"Excel读取错误: {str(e)}")
+            if file_path.endswith('.xlsx'):
+                df = pd.read_excel(file_path, engine='openpyxl')
+            else:
+                df = pd.read_excel(file_path, engine='xlrd')
 
             questions = self.process_excel_data(df)
+
             if not questions:
-                raise Exception("未找到有效题目数据")
+                raise Exception("Excel中没有找到有效的题目数据")
+
+            app = App.get_running_app()
+            if not hasattr(app, 'db'):
+                app.db = QuizDatabase()
 
             existing = app.db.get_available_quizzes()
             while quiz_name in existing:
@@ -561,23 +600,38 @@ class ExcelImportScreen(Screen):
 
             app.db.add_quiz(quiz_name, questions, source_type="excel")
 
-            Clock.schedule_once(lambda dt: (
-                processing_popup.dismiss(),
-                self.show_message(f"成功导入【{quiz_name}】(共{len(questions)}题)"),
-                setattr(self.manager, 'current', 'file_select'),
-                self.manager.get_screen('file_select').load_quiz_list()
-            ))
-            
+            self.show_message(f"成功导入题库【{quiz_name}】共{len(questions)}道题目")
+            self.manager.current = 'file_select'
+            self.manager.get_screen('file_select').load_quiz_list()
+
         except Exception as e:
-            Clock.schedule_once(lambda dt: (
-                processing_popup.dismiss(),
-                self.show_message(f"导入失败: {str(e)}")
-            ))
+            self.show_message(f'导入失败: {str(e)}')
         finally:
+            self._dismiss_processing_popup()
+
+    @mainthread
+    def _show_processing_popup(self, message):
+        if self._processing_popup:
+            self._dismiss_processing_popup()
+
+        self._processing_popup = Popup(
+            title='处理中',
+            title_font='simhei',
+            content=Label(text=message, font_size='18sp'),
+            size_hint=(0.7, 0.4),
+            auto_dismiss=False
+        )
+        self._processing_popup.open()
+
+    @mainthread
+    def _dismiss_processing_popup(self):
+        if self._processing_popup:
             try:
-                os.remove(file_path)
+                self._processing_popup.dismiss()
             except:
                 pass
+            finally:
+                self._processing_popup = None
 
     def _safe_import(self, file_path, quiz_name, processing_popup):
         try:
@@ -611,7 +665,7 @@ class ExcelImportScreen(Screen):
 
             self.manager.current = 'file_select'
             self.manager.get_screen('file_select').load_quiz_list()
-            
+
         except Exception as e:
             self.show_message(f"导入失败: {str(e)}")
         finally:
@@ -623,40 +677,57 @@ class ExcelImportScreen(Screen):
 
     def show_kivy_file_chooser(self):
         layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
-        
+
         self.file_chooser = FileChooserListView(
             filters=['*.xls', '*.xlsx'],
             font_name='simhei',
             size_hint=(1, 1)
         )
-        
+
         btn_layout = BoxLayout(size_hint_y=None, height=dp(50))
         import_btn = Button(text='导入', on_press=self.import_excel)
         cancel_btn = Button(text='取消', on_press=self.cancel_import)
         btn_layout.add_widget(cancel_btn)
         btn_layout.add_widget(import_btn)
-        
+
         layout.add_widget(self.file_chooser)
         layout.add_widget(btn_layout)
-        
+
         self.clear_widgets()
         self.add_widget(layout)
 
     def import_excel(self, instance=None):
         if platform == 'android':
             self.show_android_file_chooser()
-            return
+        else:
+            if not self.file_chooser or not self.file_chooser.selection:
+                self.show_message('请选择Excel文件')
+                return
 
-        if not self.file_chooser or not self.file_chooser.selection:
-            self.show_message('请选择Excel文件')
-            return
+            self.selected_file_path = self.file_chooser.selection[0]
+            self.suggested_quiz_name = os.path.splitext(
+                os.path.basename(self.selected_file_path)
+            )[0]
+            self._process_import()
 
-        file_path = self.file_chooser.selection[0]
-        self._process_import(file_path)
+    def _process_import(self):
+        self.show_loading_popup("正在准备导入...")
+        Clock.schedule_once(lambda dt: self._prepare_import())
 
-    def _process_import(self, file_path):
-        self.show_loading_popup("正在导入题库...")
-        Clock.schedule_once(lambda dt: self._do_import(file_path), 0.1)
+    def _prepare_import(self):
+        try:
+            if platform == 'android' and not self.selected_file_path:
+                raise Exception("未选择文件")
+            
+            file_path = self.selected_file_path
+            quiz_name = self.suggested_quiz_name
+
+            self.show_name_dialog(file_path, quiz_name)
+
+        except Exception as e:
+            self.show_message(f'准备导入失败: {str(e)}')
+        finally:
+            self.dismiss_popup()
 
     def _do_import(self, file_path, quiz_name):
         try:
@@ -664,21 +735,21 @@ class ExcelImportScreen(Screen):
                 df = pd.read_excel(file_path, engine='openpyxl')
             else:
                 df = pd.read_excel(file_path, engine='xlrd')
-            
+
             questions = self.process_excel_data(df)
 
             app = App.get_running_app()
             existing = app.db.get_available_quizzes()
             while quiz_name in existing:
                 quiz_name = f"{quiz_name}(1)"
-            
+
             app.db.add_quiz(quiz_name, questions, source_type="excel")
 
             Clock.schedule_once(
                 lambda dt: self._finalize_import(quiz_name, len(questions), 
                 0)
             )
-            
+
         except Exception as e:
             Clock.schedule_once(lambda dt, msg=f"导入失败: {str(e)}": self.show_message(msg))
         finally:
@@ -695,40 +766,48 @@ class ExcelImportScreen(Screen):
 
     def show_kivy_file_chooser(self):
         layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
-        
+
         self.file_chooser = FileChooserListView(
             filters=['*.xls', '*.xlsx'],
             font_name='simhei',
             size_hint=(1, 1)
         )
-        
+
         btn_layout = BoxLayout(size_hint_y=None, height=dp(50))
         import_btn = Button(text='导入', on_press=self.import_excel)
         cancel_btn = Button(text='取消', on_press=self.cancel_import)
         btn_layout.add_widget(cancel_btn)
         btn_layout.add_widget(import_btn)
-        
+
         layout.add_widget(self.file_chooser)
         layout.add_widget(btn_layout)
-        
+
         self.clear_widgets()
         self.add_widget(layout)
 
     @mainthread
     def show_loading_popup(self, message):
-        if hasattr(self, '_popup') and self._popup:
-            self._popup.dismiss()
+        if self._popup:
+            self.dismiss_popup()
 
-        content = BoxLayout(orientation='vertical', padding=10)
-        content.add_widget(Label(text=message))
-        self._popup = Popup(title='请稍候', title_font='simhei', content=content, size_hint=(0.8, 0.2))
+        self._popup = Popup(
+            title='请稍候',
+            title_font='simhei',
+            content=Label(text=message),
+            size_hint=(0.8, 0.2),
+            auto_dismiss=False
+        )
         self._popup.open()
 
     @mainthread
     def dismiss_popup(self):
-        if hasattr(self, '_popup') and self._popup:
-            self._popup.dismiss()
-            self._popup = None
+        if self._popup:
+            try:
+                self._popup.dismiss()
+            except:
+                pass
+            finally:
+                self._popup = None
 
     def process_excel_data(self, df):
         questions = []
@@ -846,9 +925,23 @@ class ExcelImportScreen(Screen):
 
     @mainthread
     def show_message(self, message):
-        content = Label(text=message, size_hint_y=None, height=dp(50))
-        popup = Popup(title='提示', title_font='simhei', content=content, size_hint=(0.8, 0.3))
-        content.bind(texture_size=lambda lbl, size: setattr(popup, 'height', size[1] + dp(100)))
+        content = BoxLayout(orientation='vertical', padding=10)
+        content.add_widget(Label(text=message))
+
+        btn = Button(
+            text="确定",
+            size_hint_y=None,
+            height=50
+        )
+
+        popup = Popup(
+            title='提示',
+            title_font='simhei',
+            content=content,
+            size_hint=(0.8, 0.4)
+        )
+        btn.bind(on_press=popup.dismiss)
+        content.add_widget(btn)
         popup.open()
 
     def cancel_import(self, instance):
