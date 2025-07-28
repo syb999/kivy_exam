@@ -36,15 +36,36 @@ from kivy.uix.popup import Popup
 Config.set('graphics', 'multisamples', '0')
 Config.set('kivy', 'window_impl', 'sdl2')
 
+ANDROID = False
+if platform == 'android':
+    try:
+        from jnius import autoclass, cast
+        from android import activity, mActivity
+
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Intent = autoclass('android.content.Intent')
+        Uri = autoclass('android.net.Uri')
+        Environment = autoclass('android.os.Environment')
+        Context = autoclass('android.content.Context')
+        File = autoclass('java.io.File')
+        FileInputStream = autoclass('java.io.FileInputStream')
+        FileOutputStream = autoclass('java.io.FileOutputStream')
+        System = autoclass('java.lang.System')
+        
+        mActivity = PythonActivity.mActivity
+        context = mActivity.getApplicationContext()
+        ANDROID = True
+    except Exception as e:
+        print(f"Android初始化失败: {e}")
+        ANDROID = False
+
 def check_android_storage_permission():
     if platform != 'android':
         return True
 
     try:
-        from android import mActivity
         from android.permissions import request_permissions, Permission, check_permission
-        from android.storage import primary_external_storage_path
-
+        
         request_permissions([
             Permission.READ_EXTERNAL_STORAGE,
             Permission.WRITE_EXTERNAL_STORAGE
@@ -54,17 +75,11 @@ def check_android_storage_permission():
             return False
 
         if int(mActivity.getApplicationInfo().targetSdkVersion) >= 30:
-            from android.content import Intent
-            from android.net import Uri
-            from java.lang import System
-
-            if System.getenv("EXTERNAL_STORAGE"):
-                return True
-
-            intent = Intent("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")
-            intent.setData(Uri.parse("package:" + mActivity.getPackageName()))
-            mActivity.startActivity(intent)
-            return False
+            if not System.getenv("EXTERNAL_STORAGE"):
+                intent = Intent("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")
+                intent.setData(Uri.parse("package:" + mActivity.getPackageName()))
+                mActivity.startActivity(intent)
+                return False
             
         return True
     except:
@@ -271,27 +286,140 @@ class ExcelImportScreen(Screen):
         super().__init__(**kwargs)
         self._popup = None
         self.file_chooser = None
-        self.android_file_chooser = None
+        self.selected_file_uri = None
         self.setup_ui()
 
     def setup_ui(self):
         self.clear_widgets()
         
+        layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
+        
         if platform == 'android':
-            pass
+            btn = Button(
+                text='选择Excel文件',
+                size_hint_y=None,
+                height=dp(60),
+                on_press=self.show_android_file_chooser
+            )
+            layout.add_widget(btn)
         else:
             self.show_kivy_file_chooser()
+            return
+            
+        cancel_btn = Button(
+            text='取消',
+            size_hint_y=None,
+            height=dp(50),
+            on_press=self.cancel_import
+        )
+        layout.add_widget(cancel_btn)
+        
+        self.add_widget(layout)
 
-    def go_back(self, instance):
-        if self._popup:
-            self._popup.dismiss()
-        self.manager.current = 'file_select'
+    def show_android_file_chooser(self, instance=None):
+        if not ANDROID:
+            return
+            
+        try:
+            if not check_android_storage_permission():
+                self.show_message("需要存储权限")
+                return
 
-    def on_enter(self):
-        if platform == 'android':
+            intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            intent.setType("*/*")
+            
+            mime_types = [
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            ]
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, mime_types)
+
+            def on_activity_result(request_code, result_code, intent):
+                if request_code == 1001 and result_code == -1:  # RESULT_OK
+                    uri = intent.getData()
+                    self.process_android_file(uri)
+                    
+            activity.bind(on_activity_result=on_activity_result)
+
+            mActivity.startActivityForResult(intent, 1001)
+            
+        except Exception as e:
+            print(f"文件选择器错误: {e}")
+            self.show_message("无法打开文件选择器")
+
+    def process_android_file(self, uri):
+        try:
+            self.show_loading_popup("正在处理文件...")
+
+            import threading
+            thread = threading.Thread(
+                target=self._process_android_file,
+                args=(uri,),
+                daemon=True
+            )
+            thread.start()
+            
+        except Exception as e:
+            self.show_message(f"文件处理错误: {str(e)}")
+
+    def _process_android_file(self, uri):
+        try:
+            from jnius import autoclass, cast
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Context = autoclass('android.content.Context')
+            File = autoclass('java.io.File')
+            FileOutputStream = autoclass('java.io.FileOutputStream')
+
+            content_uri = cast('android.net.Uri', uri)
+
+            internal_storage = PythonActivity.mActivity.getFilesDir()
+            temp_dir = File(internal_storage, "temp_import")
+            if not temp_dir.exists():
+                temp_dir.mkdirs()
+            
+            temp_file = File(temp_dir, "import_temp.xlsx")
+            temp_path = temp_file.getAbsolutePath()
+
+            cr = PythonActivity.mActivity.getContentResolver()
+            input_stream = cr.openInputStream(content_uri)
+            output_stream = FileOutputStream(temp_file)
+
+            buf = bytearray(8192)
+            while True:
+                bytes_read = input_stream.read(buf)
+                if bytes_read == -1:
+                    break
+                output_stream.write(buf, 0, bytes_read)
+
+            input_stream.close()
+            output_stream.close()
+
+            if not temp_file.exists():
+                raise Exception("临时文件创建失败")
+
+            Clock.schedule_once(lambda dt, path=temp_path: self._do_import(path))
+
+        except Exception as e:
+            error_msg = f"导入失败: {str(e)}"
+            Clock.schedule_once(lambda dt, msg=error_msg: self.show_message(msg))
+        finally:
+            try:
+                if 'input_stream' in locals():
+                    input_stream.close()
+                if 'output_stream' in locals():
+                    output_stream.close()
+            except:
+                pass
+
+            Clock.schedule_once(lambda dt: self._clean_temp_file(temp_path), 5)
+
+    def _clean_temp_file(self, path):
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except:
             pass
-        elif platform != 'android' and self.file_chooser:
-            self.file_chooser._update_files()
 
     def show_kivy_file_chooser(self):
         layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
@@ -314,52 +442,9 @@ class ExcelImportScreen(Screen):
         self.clear_widgets()
         self.add_widget(layout)
 
-    def show_android_file_chooser(self):
-        try:
-            from androidstorage4kivy import Chooser
-            self.android_file_chooser = Chooser(self.chooser_callback)
-            mime_types = [
-                "application/vnd.ms-excel",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                "application/octet-stream"
-            ]
-            self.android_file_chooser.choose_content(",".join(mime_types))
-        except Exception as e:
-            print(f"Android文件选择器错误: {str(e)}")
-            self.show_kivy_file_chooser()
-
-    @mainthread
-    def chooser_callback(self, uri_list):
-        if not uri_list:
-            return
-            
-        self.selected_file_uri = uri_list[0]
-        Clock.schedule_once(lambda dt: self.process_selected_file(), 0)
-
-    def process_selected_file(self):
-        if not self.selected_file_uri:
-            return
-            
-        try:
-            from androidstorage4kivy import SharedStorage
-            ss = SharedStorage()
-
-            file_path = ss.copy_from_shared(self.selected_file_uri)
-            if not file_path.lower().endswith(('.xls', '.xlsx')):
-                self.show_message("请选择Excel文件(.xls或.xlsx)")
-                return
-
-            self.show_loading_popup("正在导入...")
-
-            Clock.schedule_once(lambda dt: self._do_import(file_path), 0.1)
-            
-        except Exception as e:
-            self.show_message(f"文件处理失败: {str(e)}")
-        finally:
-            self.selected_file_uri = None
-
     def import_excel(self, instance=None):
         if platform == 'android':
+            self.show_android_file_chooser()
             return
 
         if not self.file_chooser or not self.file_chooser.selection:
@@ -375,7 +460,11 @@ class ExcelImportScreen(Screen):
 
     def _do_import(self, file_path):
         try:
-            df = pd.read_excel(file_path)
+            if file_path.endswith('.xlsx'):
+                df = pd.read_excel(file_path, engine='openpyxl')
+            else:
+                df = pd.read_excel(file_path, engine='xlrd')
+
             questions = self.process_excel_data(df)
 
             if not questions:
@@ -403,32 +492,28 @@ class ExcelImportScreen(Screen):
         finally:
             self.dismiss_popup()
 
-    def show_success_message(self, message):
-        content = BoxLayout(orientation='vertical', padding=dp(10))
-        content.add_widget(Label(
-            text=message,
+    def show_kivy_file_chooser(self):
+        layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
+        
+        self.file_chooser = FileChooserListView(
+            filters=['*.xls', '*.xlsx'],
             font_name='simhei',
-            halign='center'
-        ))
-        btn = Button(
-            text='确定',
-            size_hint_y=None,
-            height=dp(50),
-            on_press=lambda x: self.dismiss_popup()
+            size_hint=(1, 1)
         )
-        content.add_widget(btn)
+        
+        btn_layout = BoxLayout(size_hint_y=None, height=dp(50))
+        import_btn = Button(text='导入', on_press=self.import_excel)
+        cancel_btn = Button(text='取消', on_press=self.cancel_import)
+        btn_layout.add_widget(cancel_btn)
+        btn_layout.add_widget(import_btn)
+        
+        layout.add_widget(self.file_chooser)
+        layout.add_widget(btn_layout)
+        
+        self.clear_widgets()
+        self.add_widget(layout)
 
-        if hasattr(self, '_popup') and self._popup:
-            self._popup.dismiss()
-
-        self._popup = Popup(
-            title='导入成功',
-            title_font='simhei',
-            content=content,
-            size_hint=(0.8, 0.4)
-        )
-        self._popup.open()
-
+    @mainthread
     def show_loading_popup(self, message):
         if hasattr(self, '_popup') and self._popup:
             self._popup.dismiss()
@@ -438,6 +523,7 @@ class ExcelImportScreen(Screen):
         self._popup = Popup(title='请稍候', title_font='simhei', content=content, size_hint=(0.8, 0.2))
         self._popup.open()
 
+    @mainthread
     def dismiss_popup(self):
         if hasattr(self, '_popup') and self._popup:
             self._popup.dismiss()
@@ -557,6 +643,7 @@ class ExcelImportScreen(Screen):
 
         return questions
 
+    @mainthread
     def show_message(self, message):
         content = Label(text=message, size_hint_y=None, height=dp(50))
         popup = Popup(title='提示', title_font='simhei', content=content, size_hint=(0.8, 0.3))
@@ -855,16 +942,15 @@ class FileSelectScreen(Screen):
 
         layout = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
 
-        if platform != 'android':
-            import_btn = Button(
-                text='导入Excel题库',
-                size_hint_y=None,
-                height=dp(60),
-                font_name='simhei',
-                background_color=(0.2, 0.6, 1, 1)
-            )
-            import_btn.bind(on_press=self.goto_import)
-            layout.add_widget(import_btn)
+        import_btn = Button(
+            text='导入Excel题库',
+            size_hint_y=None,
+            height=dp(60),
+            font_name='simhei',
+            background_color=(0.2, 0.6, 1, 1)
+        )
+        import_btn.bind(on_press=self.goto_import)
+        layout.add_widget(import_btn)
 
         title = Label(
             text='选择题库',
@@ -909,8 +995,6 @@ class FileSelectScreen(Screen):
         self.add_widget(layout)
 
     def goto_import(self, instance):
-        if platform == 'android':
-            return
         self.manager.current = 'excel_import'
 
 class QuizApp(App):

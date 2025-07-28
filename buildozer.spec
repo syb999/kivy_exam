@@ -15,9 +15,9 @@ source.include_patterns = *.py, assets/json/*.json, assets/font/*
 
 source.include_dirs = assets, data
 
-version = 1.1
+version = 1.2
 
-requirements = python3, kivy, jnius, pyjnius,plyer, sdl2, sdl2_image, sdl2_ttf, sdl2_mixer, android, pillow, sqlite3, pandas, openpyxl, et_xmlfile
+requirements = python3, kivy, jnius, pyjnius, plyer, sdl2, sdl2_image, sdl2_ttf, sdl2_mixer, android, pillow, sqlite3, pandas, openpyxl, et_xmlfile, xlrd
 
 presplash.filename = %(source.dir)s/data/presplash.png
 
