@@ -4,11 +4,14 @@
 
 pip install pyjnius cython==0.29.37 kivy plyer buildozer -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/
 
+# 注意当使用Linux-mint_21.3系统时，jnius对numpy版本有要求:
+pip install numpy==1.24.4
+
 sudo apt-get update
 
 sudo apt-get install autoconf automake libtool pkg-config make gcc unzip
 
-sudo apt-get install android-sdk openjdk-17-jdk sdkmanager
+sudo apt-get install android-sdk openjdk-17-jdk sdkmanager autopoint libltdl-dev
 
 
 # 安装SDK cmdline-tools:

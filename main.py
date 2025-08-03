@@ -1318,6 +1318,14 @@ class QuizApp(App):
             request_permissions([Permission.READ_EXTERNAL_STORAGE, 
                                Permission.WRITE_EXTERNAL_STORAGE])
 
+            from android import mActivity
+            from jnius import autoclass
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            self.python_activity = PythonActivity.mActivity
+            self.original_orientation = self.python_activity.getRequestedOrientation()
+
+            self.set_portrait()
+
         self.sm = ScreenManager()
         self.file_select_screen = FileSelectScreen(name='file_select')
         self.quiz_screen = QuizScreen(name='quiz')
@@ -1329,12 +1337,55 @@ class QuizApp(App):
         self.sm.add_widget(self.result_screen)
         self.sm.add_widget(self.excel_import_screen)
 
+        Window.bind(on_resize=self.on_window_resize)
+
         return self.sm
+
+    def on_window_resize(self, window, width, height):
+        if platform != 'android':
+            return
+
+        if hasattr(self, '_resize_clock'):
+            self._resize_clock.cancel()
+
+        self._resize_clock = Clock.schedule_once(
+            lambda dt: self._handle_resize(width, height), 
+            0.2
+        )
+
+    def _handle_resize(self, width, height):
+        if not hasattr(self, 'python_activity'):
+            return
+
+        if width > height:
+            self.set_landscape()
+        else:
+            self.set_portrait()
+
+    def set_portrait(self):
+        if platform != 'android' or not hasattr(self, 'python_activity'):
+            return
+
+        SCREEN_ORIENTATION_PORTRAIT = 1
+        self.python_activity.setRequestedOrientation(SCREEN_ORIENTATION_PORTRAIT)
+
+    def set_landscape(self):
+        if platform != 'android' or not hasattr(self, 'python_activity'):
+            return
+
+        SCREEN_ORIENTATION_LANDSCAPE = 0
+        self.python_activity.setRequestedOrientation(SCREEN_ORIENTATION_LANDSCAPE)
 
     def on_start(self):
         self.time_event = Clock.schedule_interval(self.update_timer, 1)
 
     def on_stop(self):
+        if platform == 'android' and hasattr(self, 'python_activity'):
+            try:
+                self.python_activity.setRequestedOrientation(self.original_orientation)
+            except:
+                pass
+
         self.db.close()
         if hasattr(self, 'time_event'):
             self.time_event.cancel()
