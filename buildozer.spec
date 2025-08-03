@@ -15,7 +15,7 @@ source.include_patterns = *.py, assets/json/*.json, assets/font/*
 
 source.include_dirs = assets, data
 
-version = 1.2.3
+version = 1.2.4
 
 requirements = python3, kivy, jnius, pyjnius, plyer, sdl2, sdl2_image, sdl2_ttf, sdl2_mixer, android, pillow, sqlite3, pandas, openpyxl, et_xmlfile, xlrd
 

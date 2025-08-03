@@ -5,6 +5,7 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.checkbox import CheckBox
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.relativelayout import RelativeLayout
@@ -1125,17 +1126,34 @@ class ResultScreen(Screen):
                 question.bind(texture_size=lambda lbl, val: setattr(lbl, 'height', max(dp(100), val[1])))
                 question_scroll.add_widget(question)
 
+                answer_layout = BoxLayout(
+                    orientation='horizontal',
+                    size_hint_y=None,
+                    height=dp(40),
+                    spacing=dp(5))
+
                 answer_label = Label(
                     text=f"您的答案: {detail['user_answer']} | 正确答案: {detail['correct_answer']}",
                     font_name='simhei',
                     font_size=dp(16),
                     color=(0, 0.7, 0, 1) if detail['is_correct'] else (1, 0, 0, 1),
-                    text_size=(Window.width - dp(40), None),
                     halign='left',
-                    valign='middle',
+                    size_hint_x=0.6,
+                    text_size=(None, None))
+
+                detail_btn = Button(
+                    text='查看解析',
+                    size_hint_x=None,
+                    width=dp(100) if Window.width > Window.height else dp(80),
                     size_hint_y=None,
-                    height=dp(40)
-                )
+                    height=dp(30),
+                    font_size=dp(14),
+                    background_color=(0.2, 0.6, 1, 0.7))
+
+                detail_btn.bind(on_press=lambda btn, d=detail.copy(): self.show_answer_detail(d))
+
+                answer_layout.add_widget(answer_label)
+                answer_layout.add_widget(detail_btn)
 
                 bottom_info = BoxLayout(
                     size_hint_y=None,
@@ -1165,7 +1183,7 @@ class ResultScreen(Screen):
                 item_separator.bind(pos=self._update_rect, size=self._update_rect)
 
                 item.add_widget(question_scroll)
-                item.add_widget(answer_label)
+                item.add_widget(answer_layout)
                 item.add_widget(bottom_info)
                 item.add_widget(item_separator)
                 
@@ -1218,6 +1236,88 @@ class ResultScreen(Screen):
             traceback.print_exc()
             self.add_widget(Label(text=f"加载结果出错: {str(e)}", font_name='simhei'))
 
+    def show_answer_detail(self, question_detail):
+        app = App.get_running_app()
+
+        try:
+            original_question = question_detail['original_question']
+
+            content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+
+            question_label = Label(
+                text=f"[b]题目:[/b] {original_question['question']}",
+                font_name='simhei',
+                font_size=dp(18),
+                size_hint_y=None,
+                height=dp(80),
+                markup=True,
+                halign='left')
+            content.add_widget(question_label)
+
+            answer_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(80))
+            answer_box.add_widget(Label(
+                text=f"[b]您的答案:[/b] {question_detail['user_answer']}",
+                font_name='simhei',
+                font_size=dp(16),
+                color=(0, 0.7, 0, 1) if question_detail['is_correct'] else (1, 0, 0, 1),
+                markup=True))
+
+            answer_box.add_widget(Label(
+                text=f"[b]正确答案:[/b] {question_detail['correct_answer']}",
+                font_name='simhei',
+                font_size=dp(16),
+                color=(0, 0.7, 0, 1),
+                markup=True))
+            content.add_widget(answer_box)
+
+            if original_question.get('options'):
+                content.add_widget(Label(
+                    text="[b]完整选项:[/b]",
+                    font_name='simhei',
+                    font_size=dp(16),
+                    markup=True))
+
+                scroll = ScrollView(size_hint=(1, 0.6))
+                options_layout = GridLayout(cols=1, size_hint_y=None, spacing=dp(8),padding=[dp(5), 0])
+                options_layout.bind(minimum_height=options_layout.setter('height'))
+
+                correct_answers = original_question['answer']
+                if isinstance(correct_answers, str):
+                    correct_answers = [correct_answers.upper()]
+                else:
+                    correct_answers = [a.upper() for a in correct_answers]
+                
+                for i, opt in enumerate(original_question['options']):
+                    prefix = chr(65 + i)
+                    is_correct = prefix in correct_answers
+                    option_widget = self.create_option_widget(prefix, opt, is_correct=is_correct, is_answer=is_correct)
+                    options_layout.add_widget(option_widget)                
+
+                scroll.add_widget(options_layout)
+                content.add_widget(scroll)
+
+            btn = Button(
+                text='关闭',
+                size_hint_y=None,
+                height=dp(50),
+                background_color=(0.2, 0.6, 1, 1))
+
+            popup = Popup(
+                title='题目解析',
+                title_font='simhei',
+                content=content,
+                size_hint=(0.9, 0.9),
+                auto_dismiss=False)
+
+            btn.bind(on_press=popup.dismiss)
+            content.add_widget(btn)
+            popup.open()
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.show_message(f"解析题目时出错: {str(e)}", "系统错误")
+
     def _update_rect(self, instance, value):
         instance.canvas.before.clear()
         with instance.canvas.before:
@@ -1226,6 +1326,61 @@ class ResultScreen(Screen):
             else:
                 Color(rgb=(0.8, 0.8, 0.8))
             Rectangle(pos=instance.pos, size=instance.size)
+
+    def show_message(self, message, title='提示'):
+        content = BoxLayout(orientation='vertical', spacing=dp(10), padding=dp(10))
+        content.add_widget(Label(text=message, font_name='simhei'))
+
+        btn = Button(
+            text="确定",
+            size_hint_y=None,
+            height=dp(50),
+            on_press=lambda x: popup.dismiss())
+
+        popup = Popup(
+            title=title,
+            title_font='simhei',
+            content=content,
+            size_hint=(0.8, 0.4))
+
+        content.add_widget(btn)
+        popup.open()
+        return popup
+
+    def create_option_widget(self, prefix, opt, is_correct, is_answer=False):
+        line_count = len(opt.split('\n'))
+        option_height = max(dp(55), dp(40) * line_count)
+
+        box = BoxLayout(
+            orientation='horizontal',
+            size_hint_y=None,
+            height=option_height,
+            spacing=dp(10))
+
+        prefix_color = (0, 0.7, 0, 1) if is_correct else (0.8, 0.8, 0.8, 1)
+        box.add_widget(Label(
+            text=f"{prefix}.",
+            font_name='simhei',
+            font_size=dp(16),
+            size_hint_x=None,
+            width=dp(30),
+            color=prefix_color,
+            valign='middle',
+            halign='center'))
+
+        content_color = (0, 0.7, 0, 1) if is_answer else (0.9, 0.9, 0.9, 1)
+        content = Label(
+            text=opt,
+            font_name='simhei',
+            font_size=dp(16),
+            size_hint_x=1,
+            color=content_color,
+            halign='left',
+            valign='middle' if line_count == 1 else 'top',
+            text_size=(Window.width*0.8 - dp(100), None))
+
+        box.add_widget(content)
+        return box
 
 class FileSelectScreen(Screen):
     def on_enter(self):
@@ -1433,6 +1588,8 @@ class QuizApp(App):
         question_count = min(30, len(all_questions))
         self.questions = random.sample(all_questions, question_count)
 
+        self.original_questions = self.questions.copy()
+
         self.user_answers = []
         self.question_types = {}
         self.total_time_used = 0
@@ -1531,6 +1688,7 @@ class QuizApp(App):
             if i >= len(self.questions):
                 continue
 
+            original_question = self.original_questions[i]
             correct_answer = self.questions[i].get('answer', '')
             q_type = self.questions[i].get('type', 'single')
 
@@ -1554,6 +1712,7 @@ class QuizApp(App):
                 'question': f"{i+1}. {self.questions[i].get('question', '')}",
                 'user_answer': ', '.join(user_answer) if isinstance(user_answer, list) else user_answer if user_answer else '未作答',
                 'correct_answer': ', '.join(correct_answer) if isinstance(correct_answer, list) else correct_answer,
+                'original_question': original_question,
                 'is_correct': is_correct,
                 'score': score,
                 'time_used': time_str,
@@ -1756,6 +1915,9 @@ Builder.load_string('''
 <Button>:
     font_name: 'simhei'
     font_size: '16sp'
+    background_normal: ''
+    background_color: (0.2, 0.6, 1, 0.7) if self.text == '查看解析' else (0.3, 0.3, 0.3, 1)
+    color: (1, 1, 1, 1) if self.text == '查看解析' else (0.9, 0.9, 0.9, 1)
 
 <Label>:
     font_name: 'simhei'
